@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Music Widget — Demo Site</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: #0e0e10;
+        color: #f2f2f5;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 24px;
+      }
+      main {
+        max-width: 560px;
+      }
+      code {
+        background: #1c1c1e;
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+      pre {
+        background: #1c1c1e;
+        border: 1px solid #2c2c30;
+        border-radius: 8px;
+        padding: 16px;
+        text-align: left;
+        overflow-x: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>This is a regular website</h1>
+      <p>
+        The floating player in the corner is <code>&lt;music-widget&gt;</code>, dropped in with a single script tag. It
+        plays the fixed playlist the site owner defined in <code>playlist.json</code> — visitors can play/pause/skip,
+        but can't change what's queued. A notification slides out from the corner every time the track changes.
+      </p>
+      <pre>&lt;script
+  src="/music-widget.js"
+  data-playlist="/playlist.json"
+  data-position="bottom-right"&gt;&lt;/script&gt;</pre>
+    </main>
+
+    <!-- In dev mode this imports the TS source directly; a real site includes the built dist/music-widget.js -->
+    <script type="module">
+      import "../src/index.ts";
+      const el = document.createElement("music-widget");
+      el.setAttribute("playlist-src", "/playlist.json");
+      el.setAttribute("position", "bottom-right");
+      document.body.appendChild(el);
+    </script>
+  </body>
+</html>

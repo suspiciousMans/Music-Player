@@ -1,0 +1,19 @@
+{
+  "name": "music-player-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build:core": "npm run build -w packages/player-core",
+    "dev:desktop": "npm run dev -w apps/desktop",
+    "build:desktop": "npm run build -w apps/desktop",
+    "dev:widget": "npm run dev -w apps/web-widget",
+    "build:widget": "npm run build -w apps/web-widget"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  }
+}
