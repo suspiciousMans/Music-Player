@@ -12,11 +12,17 @@ export class PlayerEngine extends TypedEventEmitter<PlayerEventMap> {
   private audio: HTMLAudioElement;
   private playlist = new Playlist();
   private wantsPlaying = false;
+  private audioContext: AudioContext | null = null;
+  private analyserNode: AnalyserNode | null = null;
 
   constructor() {
     super();
     this.audio = new Audio();
     this.audio.preload = "metadata";
+    // Best-effort: lets the analyser read frequency data from CORS-enabled
+    // cross-origin sources (most audio CDNs). Sources without CORS headers
+    // still play fine — getAnalyser() just won't see meaningful data for them.
+    this.audio.crossOrigin = "anonymous";
     this.bindAudioEvents();
   }
 
@@ -68,6 +74,7 @@ export class PlayerEngine extends TypedEventEmitter<PlayerEventMap> {
 
   play(): void {
     this.wantsPlaying = true;
+    if (this.audioContext?.state === "suspended") void this.audioContext.resume();
     void this.audio.play().catch((err) => {
       this.emit("error", { message: String(err), track: this.playlist.currentTrack });
     });
@@ -133,6 +140,31 @@ export class PlayerEngine extends TypedEventEmitter<PlayerEventMap> {
     this.playlist.setRepeat(mode);
   }
 
+  /**
+   * Lazily wires the audio element through a Web Audio AnalyserNode for
+   * reactive visualizations. Returns null if Web Audio isn't available
+   * (e.g. older environments) rather than throwing — visualizers are a
+   * cosmetic layer and should never be able to break playback.
+   */
+  getAnalyser(): AnalyserNode | null {
+    if (this.analyserNode) return this.analyserNode;
+    try {
+      const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      this.audioContext = new Ctx();
+      const source = this.audioContext.createMediaElementSource(this.audio);
+      this.analyserNode = this.audioContext.createAnalyser();
+      this.analyserNode.fftSize = 256;
+      this.analyserNode.smoothingTimeConstant = 0.8;
+      source.connect(this.analyserNode);
+      this.analyserNode.connect(this.audioContext.destination);
+      return this.analyserNode;
+    } catch {
+      this.audioContext = null;
+      this.analyserNode = null;
+      return null;
+    }
+  }
+
   getState(): PlayerState {
     return {
       track: this.playlist.currentTrack,
@@ -151,5 +183,8 @@ export class PlayerEngine extends TypedEventEmitter<PlayerEventMap> {
     this.audio.pause();
     this.audio.removeAttribute("src");
     this.audio.load();
+    void this.audioContext?.close();
+    this.audioContext = null;
+    this.analyserNode = null;
   }
 }

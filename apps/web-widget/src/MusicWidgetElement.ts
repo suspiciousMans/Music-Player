@@ -1,8 +1,9 @@
-import { PlayerEngine, type Track } from "@music-player/core";
+import { PlayerEngine, ReactiveVisualizer, type Track, type VisualizerStyle } from "@music-player/core";
 import { WIDGET_STYLES } from "./styles.js";
 
 type Position = "bottom-right" | "bottom-left" | "top-right" | "top-left";
 const VALID_POSITIONS: Position[] = ["bottom-right", "bottom-left", "top-right", "top-left"];
+const VALID_VISUALIZERS: VisualizerStyle[] = ["bars", "wave", "pulse", "off"];
 const TOAST_VISIBLE_MS = 4500;
 
 function isValidPlaylist(data: unknown): data is Track[] {
@@ -27,7 +28,7 @@ function isValidPlaylist(data: unknown): data is Track[] {
  */
 export class MusicWidgetElement extends HTMLElement {
   static get observedAttributes(): string[] {
-    return ["playlist-src", "position", "accent"];
+    return ["playlist-src", "position", "accent", "theme", "background", "visualizer"];
   }
 
   private root: ShadowRoot;
@@ -35,6 +36,7 @@ export class MusicWidgetElement extends HTMLElement {
   private unsubscribers: Array<() => void> = [];
   private seenFirstTrackChange = false;
   private toastTimers: number[] = [];
+  private visualizer: ReactiveVisualizer | null = null;
 
   private dockEl!: HTMLDivElement;
   private toastSlotEl!: HTMLDivElement;
@@ -45,6 +47,8 @@ export class MusicWidgetElement extends HTMLElement {
   private progressFillEl!: HTMLDivElement;
   private progressTrackEl!: HTMLDivElement;
   private hintEl!: HTMLDivElement;
+  private visualizerWrapEl!: HTMLDivElement;
+  private visualizerCanvasEl!: HTMLCanvasElement;
 
   constructor() {
     super();
@@ -60,6 +64,7 @@ export class MusicWidgetElement extends HTMLElement {
   disconnectedCallback(): void {
     this.unsubscribers.forEach((unsub) => unsub());
     this.toastTimers.forEach((t) => window.clearTimeout(t));
+    this.visualizer?.destroy();
     this.engine.destroy();
   }
 
@@ -69,7 +74,17 @@ export class MusicWidgetElement extends HTMLElement {
       this.dockEl.dataset.position = this.getPosition();
     }
     if (name === "accent" && this.root.host) {
-      (this as HTMLElement).style.setProperty("--mp-accent", newValue || "#6c5ce7");
+      this.style.setProperty("--mp-accent", newValue || "#6c5ce7");
+      this.visualizer?.setColor(newValue || "#6c5ce7");
+    }
+    if (name === "background" && this.root.host) {
+      if (newValue) this.style.setProperty("--mp-card-bg", newValue);
+      else this.style.removeProperty("--mp-card-bg");
+    }
+    if (name === "visualizer" && this.visualizerWrapEl) {
+      const style = this.getVisualizerStyle();
+      this.visualizerWrapEl.style.display = style === "off" ? "none" : "";
+      this.visualizer?.setStyle(style);
     }
     if (name === "playlist-src" && this.dockEl) {
       void this.loadPlaylist();
@@ -79,6 +94,11 @@ export class MusicWidgetElement extends HTMLElement {
   private getPosition(): Position {
     const value = this.getAttribute("position") as Position | null;
     return value && VALID_POSITIONS.includes(value) ? value : "bottom-right";
+  }
+
+  private getVisualizerStyle(): VisualizerStyle {
+    const value = this.getAttribute("visualizer") as VisualizerStyle | null;
+    return value && VALID_VISUALIZERS.includes(value) ? value : "bars";
   }
 
   private render(): void {
@@ -96,6 +116,7 @@ export class MusicWidgetElement extends HTMLElement {
     const card = document.createElement("div");
     card.className = "card";
     card.innerHTML = `
+      <div class="visualizer" id="visualizer"><canvas class="visualizer-canvas" id="visualizer-canvas"></canvas></div>
       <div class="badge">Now playing</div>
       <div class="card-row">
         <div class="art-placeholder" id="art">&#9834;</div>
@@ -125,9 +146,16 @@ export class MusicWidgetElement extends HTMLElement {
     this.progressFillEl = card.querySelector("#progress-fill")!;
     this.progressTrackEl = card.querySelector("#progress-track")!;
     this.hintEl = card.querySelector("#hint")!;
+    this.visualizerWrapEl = card.querySelector("#visualizer")!;
+    this.visualizerCanvasEl = card.querySelector("#visualizer-canvas")!;
 
     const accent = this.getAttribute("accent");
     if (accent) this.style.setProperty("--mp-accent", accent);
+    const background = this.getAttribute("background");
+    if (background) this.style.setProperty("--mp-card-bg", background);
+    const visualizerStyle = this.getVisualizerStyle();
+    this.visualizerWrapEl.style.display = visualizerStyle === "off" ? "none" : "";
+    this.setupVisualizer(visualizerStyle);
 
     card.querySelector('[data-action="toggle"]')!.addEventListener("click", () => this.engine.toggle());
     card.querySelector('[data-action="next"]')!.addEventListener("click", () => this.engine.next());
@@ -138,6 +166,17 @@ export class MusicWidgetElement extends HTMLElement {
       const duration = this.engine.getState().duration;
       if (duration > 0) this.engine.seek(ratio * duration);
     });
+  }
+
+  private setupVisualizer(style: VisualizerStyle): void {
+    const analyser = this.engine.getAnalyser();
+    if (!analyser) return;
+    this.visualizer = new ReactiveVisualizer(this.visualizerCanvasEl, analyser, {
+      style,
+      color: this.getAttribute("accent") || "#6c5ce7",
+    });
+    if (!this.engine.getState().isPlaying) return;
+    this.visualizer.start();
   }
 
   private async loadPlaylist(): Promise<void> {
@@ -170,10 +209,12 @@ export class MusicWidgetElement extends HTMLElement {
       this.engine.on("play", () => {
         this.toggleBtn.innerHTML = "&#9208;";
         this.toggleBtn.title = "Pause";
+        this.visualizer?.start();
       }),
       this.engine.on("pause", () => {
         this.toggleBtn.innerHTML = "&#9654;";
         this.toggleBtn.title = "Play";
+        this.visualizer?.stop();
       }),
       this.engine.on("timeupdate", ({ currentTime, duration }) => {
         const pct = duration > 0 ? (currentTime / duration) * 100 : 0;

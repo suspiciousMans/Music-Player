@@ -39,6 +39,8 @@ The desktop app lets you add music four ways (via the "+ Add music" menu):
 
 Your library persists to disk (`app.getPath('userData')/library.json`) between launches.
 
+**Customize** (top-right of the header) lets you personalize the interface: light/dark theme, accent color, background style (ambient animated gradient, an audio-reactive visualizer, a custom image URL, or plain solid), and the visualizer's shape (bars/wave/pulse/off — also used by the small equalizer next to the now-playing artwork). Preferences persist to `localStorage`.
+
 ### Web widget
 
 ```bash
@@ -56,10 +58,28 @@ That auto-mounts a `<music-widget>` for you. You can also place the element expl
 
 ```html
 <script type="module" src="/music-widget.esm.js"></script>
-<music-widget playlist-src="/playlist.json" position="bottom-left" accent="#22c55e"></music-widget>
+<music-widget
+  playlist-src="/playlist.json"
+  position="bottom-left"
+  accent="#22c55e"
+  theme="light"
+  background="linear-gradient(135deg, #fef3c7, #fde68a)"
+  visualizer="wave"
+></music-widget>
 ```
 
-**Attributes:** `playlist-src` (required, URL to a playlist JSON file), `position` (`bottom-right` default, `bottom-left`, `top-right`, `top-left`), `accent` (any CSS color).
+**Attributes:**
+
+| attribute | values | default | notes |
+|---|---|---|---|
+| `playlist-src` | URL to a playlist JSON file | — | required |
+| `position` | `bottom-right`, `bottom-left`, `top-right`, `top-left` | `bottom-right` | corner the widget docks to |
+| `accent` | any CSS color | `#6c5ce7` | drives buttons, the toast, and the visualizer |
+| `theme` | `dark`, `light` | `dark` | |
+| `background` | any CSS `background` value (color, gradient, `url(...)`) | matches theme | customizes the widget card's background |
+| `visualizer` | `bars`, `wave`, `pulse`, `off` | `bars` | audio-reactive strip inside the card |
+
+The one-script-tag embed reads these from the script's own `data-*` attributes (`data-theme`, `data-background`, `data-visualizer`, alongside the existing `data-playlist`/`data-position`/`data-accent`).
 
 **Playlist JSON format** — an array of tracks the developer controls (see `apps/web-widget/public/playlist.json` for a working sample using public demo audio):
 
@@ -74,3 +94,7 @@ Swap in your own hosted audio files before deploying — the bundled sample uses
 ## How notifications work
 
 `PlayerEngine` emits a `trackchange` event any time the active track changes (skip, autoplay-to-next, or a manual selection). Both front ends listen for this event and show a small card that slides in from a screen corner, then auto-dismisses a few seconds later (respecting `prefers-reduced-motion`). The very first track load (queue hydration on startup) is suppressed so you don't get a notification before you've interacted with the player.
+
+## How the reactive visualizer works
+
+`PlayerEngine.getAnalyser()` lazily wires the `<audio>` element through a Web Audio `AnalyserNode` (returns `null` if Web Audio isn't available — visualizers never break playback). `ReactiveVisualizer` (in `packages/player-core`) is a small framework-agnostic class that reads that analyser and paints bars/wave/pulse animations onto a `<canvas>`; both the desktop app's mini equalizer + reactive background and the widget's in-card visualizer are the same class, just pointed at different canvases. Cross-origin audio without CORS headers still plays fine — the analyser just won't have real data to visualize for it.

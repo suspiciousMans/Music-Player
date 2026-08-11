@@ -11,6 +11,15 @@ export const WIDGET_STYLES = /* css */ `
   color-scheme: dark;
 }
 
+:host([theme="light"]) {
+  --mp-bg: #ffffff;
+  --mp-bg-hover: #eeeef1;
+  --mp-border: #e2e2e7;
+  --mp-text: #17171a;
+  --mp-text-dim: #6b6b74;
+  color-scheme: light;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -31,12 +40,28 @@ export const WIDGET_STYLES = /* css */ `
 
 .card {
   width: 100%;
-  background: var(--mp-bg);
+  background: var(--mp-card-bg, var(--mp-bg));
   border: 1px solid var(--mp-border);
   border-radius: 14px;
   padding: 12px;
   color: var(--mp-text);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+.visualizer {
+  width: 100%;
+  height: 30px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(127, 127, 127, 0.08);
+}
+
+.visualizer-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .card-row {

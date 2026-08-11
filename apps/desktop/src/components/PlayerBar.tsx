@@ -1,8 +1,11 @@
 import type { PlayerEngine, PlayerState } from "@music-player/core";
+import type { ThemeConfig } from "../hooks/useTheme";
+import { MiniVisualizer } from "./MiniVisualizer";
 
 interface Props {
   engine: PlayerEngine;
   state: PlayerState;
+  theme: ThemeConfig;
 }
 
 function formatTime(seconds: number): string {
@@ -14,7 +17,7 @@ function formatTime(seconds: number): string {
   return `${mins}:${secs}`;
 }
 
-export function PlayerBar({ engine, state }: Props) {
+export function PlayerBar({ engine, state, theme }: Props) {
   const { track, isPlaying, currentTime, duration, volume, muted, shuffle, repeat } = state;
 
   return (
@@ -31,6 +34,7 @@ export function PlayerBar({ engine, state }: Props) {
               <div className="player-bar-title">{track.title}</div>
               <div className="player-bar-artist">{track.artist ?? "Unknown artist"}</div>
             </div>
+            <MiniVisualizer engine={engine} isPlaying={isPlaying} theme={theme} />
           </>
         ) : (
           <div className="player-bar-empty">Add music to get started</div>

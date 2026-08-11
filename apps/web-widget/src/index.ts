@@ -26,6 +26,9 @@ function autoMount(script: HTMLScriptElement | null): void {
   el.setAttribute("playlist-src", playlistSrc);
   if (script?.dataset.position) el.setAttribute("position", script.dataset.position);
   if (script?.dataset.accent) el.setAttribute("accent", script.dataset.accent);
+  if (script?.dataset.theme) el.setAttribute("theme", script.dataset.theme);
+  if (script?.dataset.background) el.setAttribute("background", script.dataset.background);
+  if (script?.dataset.visualizer) el.setAttribute("visualizer", script.dataset.visualizer);
   document.body.appendChild(el);
 }
 

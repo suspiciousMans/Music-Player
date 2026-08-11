@@ -1,13 +1,17 @@
 import { useEffect, useRef } from "react";
 import type { Track } from "@music-player/core";
 import { usePlayerEngine } from "./hooks/usePlayerEngine";
+import { useTheme } from "./hooks/useTheme";
 import { PlayerBar } from "./components/PlayerBar";
 import { Library } from "./components/Library";
 import { AddSourceMenu } from "./components/AddSourceMenu";
 import { NotificationToast } from "./components/NotificationToast";
+import { CustomizePanel } from "./components/CustomizePanel";
+import { ReactiveBackground } from "./components/ReactiveBackground";
 
 export function App() {
   const { engine, state, queue, notification, dismissNotification } = usePlayerEngine();
+  const { theme, update: updateTheme } = useTheme();
   const hydrated = useRef(false);
 
   // Load the persisted library once on startup.
@@ -42,10 +46,14 @@ export function App() {
     <div className="app">
       <header className="app-header">
         <h1>Music Player</h1>
-        <AddSourceMenu onAdd={addTracks} />
+        <div className="app-header-actions">
+          <CustomizePanel theme={theme} onChange={updateTheme} />
+          <AddSourceMenu onAdd={addTracks} />
+        </div>
       </header>
 
       <main className="app-main">
+        <ReactiveBackground engine={engine} isPlaying={state.isPlaying} theme={theme} />
         <Library
           tracks={queue}
           currentIndex={state.index}
@@ -55,7 +63,7 @@ export function App() {
         />
       </main>
 
-      <PlayerBar engine={engine} state={state} />
+      <PlayerBar engine={engine} state={state} theme={theme} />
 
       <div className="toast-region">
         {notification && (
