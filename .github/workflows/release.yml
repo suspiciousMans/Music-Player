@@ -1,0 +1,99 @@
+name: Release
+
+# Fires whenever a version tag (v1.2.3) is pushed. Builds desktop installers
+# for Mac/Windows/Linux and attaches them to a GitHub Release, and publishes
+# the widget bundle to GitHub Pages under both a versioned path and /latest.
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set installer version from tag
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          npm pkg set version="$VERSION" -w apps/desktop
+
+      - name: Build shared engine
+        run: npm run build:core
+
+      - name: Build renderer + main/preload
+        run: npm run build -w apps/desktop
+
+      - name: Publish desktop installer
+        working-directory: apps/desktop
+        run: npx electron-builder --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # No signing identity is configured for this project; skip the
+          # lookup instead of failing the build on CI runners.
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+  widget:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build shared engine + widget
+        run: |
+          npm run build:core
+          npm run build:widget
+
+      - name: Assemble versioned + latest widget bundle
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          OWNER="${GITHUB_REPOSITORY%%/*}"
+          REPO="${GITHUB_REPOSITORY##*/}"
+          mkdir -p "site/$VERSION" site/latest
+          cp apps/web-widget/dist/music-widget.js apps/web-widget/dist/music-widget.esm.js apps/web-widget/dist/playlist.json "site/$VERSION/"
+          cp apps/web-widget/dist/music-widget.js apps/web-widget/dist/music-widget.esm.js apps/web-widget/dist/playlist.json site/latest/
+          {
+            echo "<!doctype html>"
+            echo "<title>Music Player Widget</title>"
+            echo "<body style=\"font-family: sans-serif; max-width: 640px; margin: 40px auto; line-height: 1.5;\">"
+            echo "<h1>Music Player Widget</h1>"
+            echo "<p>Embed the latest build:</p>"
+            echo "<pre>&lt;script src=\"https://${OWNER}.github.io/${REPO}/latest/music-widget.js\" data-playlist=\"/playlist.json\"&gt;&lt;/script&gt;</pre>"
+            echo "<p>Or pin an exact release: <code>/${VERSION}/music-widget.js</code></p>"
+            echo "<p>Current version: <strong>${VERSION}</strong></p>"
+            echo "</body>"
+          } > site/index.html
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site
+          # Keep previously published version folders around; only latest/
+          # and index.html are meant to be overwritten on every release.
+          keep_files: true

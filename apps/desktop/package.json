@@ -1,6 +1,8 @@
 {
   "name": "@music-player/desktop",
   "version": "0.1.0",
+  "description": "Music Player desktop app",
+  "author": "Music Player",
   "private": true,
   "main": "dist-electron/main.js",
   "scripts": {
@@ -22,7 +24,7 @@
     "@vitejs/plugin-react": "^4.3.1",
     "concurrently": "^8.2.2",
     "cross-env": "^7.0.3",
-    "electron": "^31.3.0",
+    "electron": "31.7.7",
     "electron-builder": "^24.13.3",
     "typescript": "^5.5.4",
     "vite": "^5.4.0",
@@ -31,12 +33,18 @@
   "build": {
     "appId": "com.musicplayer.desktop",
     "productName": "Music Player",
+    "electronVersion": "31.7.7",
     "files": [
       "dist/**/*",
       "dist-electron/**/*"
     ],
     "directories": {
       "output": "release"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "suspiciousMans",
+      "repo": "Music-Player"
     },
     "mac": { "category": "public.app-category.music" },
     "linux": { "target": ["AppImage"], "category": "Audio" },

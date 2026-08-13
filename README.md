@@ -98,3 +98,23 @@ Swap in your own hosted audio files before deploying — the bundled sample uses
 ## How the reactive visualizer works
 
 `PlayerEngine.getAnalyser()` lazily wires the `<audio>` element through a Web Audio `AnalyserNode` (returns `null` if Web Audio isn't available — visualizers never break playback). `ReactiveVisualizer` (in `packages/player-core`) is a small framework-agnostic class that reads that analyser and paints bars/wave/pulse animations onto a `<canvas>`; both the desktop app's mini equalizer + reactive background and the widget's in-card visualizer are the same class, just pointed at different canvases. Cross-origin audio without CORS headers still plays fine — the analyser just won't have real data to visualize for it.
+
+## Releasing
+
+Pushing a version tag (`v*.*.*`) triggers [`.github/workflows/release.yml`](.github/workflows/release.yml), which:
+
+- Builds the desktop app for macOS, Windows, and Linux via `electron-builder` and attaches the installers (`.dmg`, `.exe`, `.AppImage`) to a GitHub Release for that tag — nothing to do manually, electron-builder creates the release itself.
+- Builds the widget bundle and publishes it to GitHub Pages under **both** `/<version>/` (pinned) and `/latest/` (always the newest release), alongside a small landing page with the embed snippet.
+
+To cut a release:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+The tag is the single source of truth for the version — `apps/desktop/package.json`'s `version` field gets overwritten with the tag on every release build, so you don't need to bump it by hand.
+
+**One-time setup required:** GitHub Pages must be enabled for this repo with its source set to the `gh-pages` branch (Settings → Pages) — the workflow creates and pushes that branch on the first release, but the Pages source needs to be pointed at it once, and no additional secrets/tokens are needed since it uses the built-in `GITHUB_TOKEN`.
+
+Neither the macOS nor Windows build is code-signed (no signing certificate is configured), so installers will show an "unidentified developer" / SmartScreen warning until one is added.
